@@ -1,0 +1,1374 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>StardewOS v1.0</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap" rel="stylesheet" />
+  <style>
+    /* ─── RESET & ROOT ─────────────────────────────────────────────── */
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    :root {
+      --green-dark:   #3a5a1c;
+      --green-mid:    #5a8a2c;
+      --green-light:  #8dc63f;
+      --brown-dark:   #3b1f0a;
+      --brown-mid:    #7a4a1e;
+      --brown-light:  #c8843a;
+      --dirt:         #9b6b3a;
+      --dirt-tilled:  #6b4020;
+      --water:        #3a86c8;
+      --sky-day:      #87ceeb;
+      --sky-dusk:     #e87c3e;
+      --sky-night:    #0a0a2e;
+      --gold:         #f5c842;
+      --ui-bg:        #2c1a08;
+      --ui-border:    #c8843a;
+      --ui-light:     #f0d8a8;
+      --pixel-font:   'Press Start 2P', monospace;
+    }
+    html, body { width: 100%; height: 100%; overflow: hidden; background: #000; }
+    body { font-family: var(--pixel-font); image-rendering: pixelated; }
+
+    /* ─── BOOT SCREEN ───────────────────────────────────────────────── */
+    #boot-screen {
+      position: fixed; inset: 0; z-index: 9999;
+      background: #000;
+      display: flex; flex-direction: column;
+      align-items: center; justify-content: center;
+      gap: 20px;
+    }
+    #boot-logo {
+      font-size: clamp(18px, 3vw, 32px);
+      color: var(--gold);
+      text-shadow: 4px 4px 0 var(--brown-dark), 0 0 30px rgba(245,200,66,0.5);
+      text-align: center;
+      line-height: 1.6;
+      animation: pulse 1.5s ease-in-out infinite;
+    }
+    #boot-sub {
+      font-size: clamp(6px, 1.2vw, 11px);
+      color: var(--green-light);
+      text-align: center;
+      letter-spacing: 2px;
+    }
+    #boot-press {
+      font-size: clamp(7px, 1.4vw, 12px);
+      color: #fff;
+      animation: blink 1s step-end infinite;
+      margin-top: 20px;
+    }
+    #boot-bar-wrap {
+      width: 280px; height: 18px;
+      border: 3px solid var(--ui-border);
+      background: #111;
+      display: none;
+    }
+    #boot-bar {
+      height: 100%; width: 0%;
+      background: linear-gradient(90deg, var(--green-dark), var(--green-light));
+      transition: width 0.1s linear;
+    }
+    #boot-status {
+      font-size: 8px; color: #aaa; text-align: center;
+      display: none;
+    }
+    .boot-star {
+      position: absolute;
+      width: 2px; height: 2px;
+      background: #fff;
+      animation: twinkle 3s ease-in-out infinite;
+    }
+    @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:.6} }
+    @keyframes blink { 0%,100%{opacity:1} 49%{opacity:1} 50%,99%{opacity:0} }
+    @keyframes twinkle { 0%,100%{opacity:.2} 50%{opacity:1} }
+
+    /* ─── DESKTOP ───────────────────────────────────────────────────── */
+    #desktop {
+      position: fixed; inset: 0;
+      display: none;
+      flex-direction: column;
+      background: var(--sky-day);
+      transition: background 3s ease;
+      overflow: hidden;
+    }
+    /* sky gradient overlay */
+    #sky-overlay {
+      position: absolute; inset: 0;
+      pointer-events: none; z-index: 0;
+      background: transparent;
+      transition: background 3s ease;
+    }
+    /* night overlay */
+    #night-overlay {
+      position: absolute; inset: 0;
+      pointer-events: none; z-index: 1;
+      background: transparent;
+      transition: background 2s ease;
+    }
+
+    /* ─── MAIN AREA ─────────────────────────────────────────────────── */
+    #main-area {
+      position: relative; z-index: 2;
+      flex: 1;
+      display: flex;
+      padding: 8px 8px 0 8px;
+      gap: 8px;
+      overflow: hidden;
+    }
+
+    /* ─── FARM GRID ─────────────────────────────────────────────────── */
+    #farm-wrap {
+      flex: 1;
+      display: flex; flex-direction: column;
+      gap: 4px;
+    }
+    #farm-label {
+      font-size: 8px; color: var(--ui-light);
+      text-shadow: 1px 1px 0 #000;
+      padding-left: 4px;
+    }
+    #farm-grid {
+      flex: 1;
+      display: grid;
+      grid-template-columns: repeat(9, 1fr);
+      grid-template-rows: repeat(6, 1fr);
+      gap: 3px;
+      background: var(--green-dark);
+      border: 4px solid var(--brown-dark);
+      box-shadow: inset 0 0 0 2px var(--brown-light), 4px 4px 0 #000;
+      padding: 4px;
+      min-height: 0;
+    }
+    .farm-cell {
+      background: var(--green-mid);
+      border: 2px solid var(--green-dark);
+      cursor: pointer;
+      display: flex; align-items: center; justify-content: center;
+      font-size: clamp(10px, 1.8vw, 20px);
+      position: relative;
+      transition: filter 0.15s, transform 0.1s;
+      user-select: none;
+    }
+    .farm-cell:hover { filter: brightness(1.25); transform: scale(1.05); z-index: 1; }
+    .farm-cell.tilled  { background: var(--dirt-tilled); border-color: #3a1800; }
+    .farm-cell.planted { background: var(--dirt-tilled); border-color: #3a1800; }
+    .farm-cell.watered { background: #4a2800; border-color: #2a1400; box-shadow: inset 0 0 6px rgba(0,100,200,.4); }
+    .farm-cell.ready   { background: var(--dirt-tilled); border-color: #5a8a2c;
+      animation: grow-glow 1.2s ease-in-out infinite; }
+    .farm-cell.water-tile { background: var(--water); border-color: #2060a0; cursor: default; }
+    .farm-cell.path-tile  { background: var(--brown-light); border-color: var(--brown-mid); cursor: default; }
+    .crop-icon { pointer-events: none; }
+    .grow-indicator {
+      position: absolute; bottom: 1px; right: 1px;
+      font-size: 6px; color: var(--green-light);
+      pointer-events: none;
+    }
+    @keyframes grow-glow {
+      0%,100% { box-shadow: 0 0 4px 1px rgba(100,255,50,.4); }
+      50%      { box-shadow: 0 0 10px 3px rgba(100,255,50,.8); }
+    }
+
+    /* ─── SIDEBAR ICONS ─────────────────────────────────────────────── */
+    #sidebar {
+      display: flex; flex-direction: column;
+      gap: 6px; padding-top: 24px;
+    }
+    .desk-icon {
+      width: 56px; height: 56px;
+      background: var(--ui-bg);
+      border: 3px solid var(--ui-border);
+      box-shadow: 3px 3px 0 #000;
+      display: flex; flex-direction: column;
+      align-items: center; justify-content: center;
+      gap: 3px;
+      cursor: pointer;
+      transition: transform .1s, filter .1s;
+      font-size: 18px;
+    }
+    .desk-icon:hover { transform: scale(1.08); filter: brightness(1.3); }
+    .desk-icon:active { transform: scale(.96); }
+    .desk-icon span.icon-label {
+      font-size: 5px; color: var(--ui-light);
+      text-align: center; line-height: 1.2;
+    }
+
+    /* ─── WEATHER BAR ───────────────────────────────────────────────── */
+    #weather-bar {
+      position: relative; z-index: 2;
+      display: flex; align-items: center;
+      gap: 8px; padding: 4px 10px;
+      background: rgba(0,0,0,.3);
+      font-size: 8px; color: var(--ui-light);
+    }
+    #weather-bar span { opacity: .9; }
+
+    /* ─── TASKBAR ───────────────────────────────────────────────────── */
+    #taskbar {
+      position: relative; z-index: 2;
+      height: 56px;
+      background: var(--ui-bg);
+      border-top: 4px solid var(--ui-border);
+      display: flex; align-items: center;
+      gap: 6px; padding: 0 10px;
+      box-shadow: 0 -2px 0 #000;
+    }
+    /* energy */
+    #energy-wrap {
+      display: flex; flex-direction: column;
+      gap: 2px; min-width: 80px;
+    }
+    #energy-label { font-size: 6px; color: var(--gold); }
+    #energy-bar-outer {
+      width: 80px; height: 10px;
+      border: 2px solid var(--ui-border);
+      background: #111;
+    }
+    #energy-bar {
+      height: 100%; width: 100%;
+      background: linear-gradient(90deg, #f5c842, #ff9900);
+      transition: width .5s ease;
+    }
+    #energy-val { font-size: 6px; color: var(--ui-light); }
+    /* clock */
+    #clock-wrap {
+      flex: 1; text-align: center;
+    }
+    #time-display {
+      font-size: clamp(7px, 1.4vw, 12px);
+      color: var(--gold);
+      text-shadow: 1px 1px 0 #000;
+    }
+    #date-display { font-size: 7px; color: var(--ui-light); margin-top: 3px; }
+    /* tools */
+    #tools-wrap {
+      display: flex; gap: 5px; align-items: center;
+    }
+    #tools-label { font-size: 6px; color: var(--ui-light); writing-mode: vertical-rl; }
+    .tool-btn {
+      width: 40px; height: 40px;
+      background: var(--brown-mid);
+      border: 3px solid var(--ui-border);
+      box-shadow: 2px 2px 0 #000;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 18px;
+      cursor: pointer;
+      transition: transform .1s, background .1s;
+      position: relative;
+    }
+    .tool-btn:hover { background: var(--brown-light); }
+    .tool-btn.active {
+      background: var(--gold);
+      border-color: #fff;
+      box-shadow: 0 0 8px rgba(245,200,66,.6), 2px 2px 0 #000;
+    }
+    .tool-tooltip {
+      position: absolute; bottom: 110%; left: 50%; transform: translateX(-50%);
+      background: #000; color: #fff; font-size: 6px;
+      padding: 3px 5px; white-space: nowrap;
+      pointer-events: none; opacity: 0;
+      transition: opacity .2s;
+      border: 1px solid var(--ui-border);
+    }
+    .tool-btn:hover .tool-tooltip { opacity: 1; }
+    /* gold display */
+    #gold-display {
+      display: flex; align-items: center; gap: 4px;
+      background: rgba(0,0,0,.4); padding: 4px 8px;
+      border: 2px solid var(--gold);
+    }
+    #gold-display span:first-child { font-size: 14px; }
+    #gold-val { font-size: 9px; color: var(--gold); }
+    /* season */
+    #season-display {
+      font-size: 8px; color: var(--ui-light);
+      text-align: center; min-width: 50px;
+    }
+
+    /* ─── WINDOWS ───────────────────────────────────────────────────── */
+    .os-window {
+      position: absolute; z-index: 100;
+      min-width: 240px; min-height: 160px;
+      background: var(--ui-bg);
+      border: 4px solid var(--ui-border);
+      box-shadow: 5px 5px 0 #000;
+      display: none; flex-direction: column;
+      font-size: 8px;
+      animation: win-open .15s ease-out;
+    }
+    .os-window.visible { display: flex; }
+    @keyframes win-open { from{transform:scale(.85);opacity:0} to{transform:scale(1);opacity:1} }
+    .win-titlebar {
+      background: var(--brown-mid);
+      border-bottom: 3px solid var(--ui-border);
+      padding: 6px 8px;
+      display: flex; align-items: center; gap: 6px;
+      cursor: grab; user-select: none;
+    }
+    .win-titlebar:active { cursor: grabbing; }
+    .win-title { color: var(--ui-light); font-size: 8px; flex: 1; }
+    .win-close {
+      width: 18px; height: 18px;
+      background: #a83232; border: 2px solid #ff6666;
+      color: #fff; font-size: 10px;
+      display: flex; align-items: center; justify-content: center;
+      cursor: pointer; font-family: monospace;
+    }
+    .win-close:hover { background: #d04040; }
+    .win-body {
+      flex: 1; padding: 8px;
+      overflow-y: auto; color: var(--ui-light);
+      scrollbar-width: thin; scrollbar-color: var(--brown-light) var(--ui-bg);
+    }
+    /* scrollbar */
+    .win-body::-webkit-scrollbar { width: 8px; }
+    .win-body::-webkit-scrollbar-track { background: var(--ui-bg); }
+    .win-body::-webkit-scrollbar-thumb { background: var(--brown-light); }
+
+    /* inventory grid */
+    .inv-grid {
+      display: grid;
+      grid-template-columns: repeat(6, 1fr);
+      gap: 4px; margin-bottom: 8px;
+    }
+    .inv-slot {
+      width: 100%; aspect-ratio: 1;
+      background: #1a0d00;
+      border: 2px solid var(--ui-border);
+      display: flex; flex-direction: column;
+      align-items: center; justify-content: center;
+      font-size: clamp(12px, 1.5vw, 18px);
+      cursor: pointer;
+      transition: background .15s;
+      position: relative;
+    }
+    .inv-slot:hover { background: var(--brown-dark); }
+    .inv-slot.empty { opacity: .4; }
+    .inv-count {
+      position: absolute; bottom: 1px; right: 3px;
+      font-size: 7px; color: var(--gold);
+    }
+
+    /* calendar */
+    .cal-grid {
+      display: grid;
+      grid-template-columns: repeat(7, 1fr);
+      gap: 2px; margin-top: 8px;
+    }
+    .cal-day {
+      aspect-ratio: 1;
+      background: #1a0d00;
+      border: 2px solid var(--brown-dark);
+      display: flex; align-items: center; justify-content: center;
+      font-size: 7px; color: var(--ui-light);
+    }
+    .cal-day.today {
+      background: var(--green-dark);
+      border-color: var(--gold);
+      color: var(--gold);
+    }
+    .cal-day.past { opacity: .4; }
+
+    /* mail */
+    .mail-item {
+      border-bottom: 1px solid var(--brown-dark);
+      padding: 6px 0; display: flex; gap: 8px;
+    }
+    .mail-item:last-child { border: none; }
+    .mail-icon { font-size: 14px; }
+    .mail-content { flex: 1; }
+    .mail-from { color: var(--gold); font-size: 7px; margin-bottom: 3px; }
+    .mail-text { font-size: 6px; color: var(--ui-light); line-height: 1.6; }
+    .mail-item.unread .mail-from::after {
+      content: ' •'; color: #ff6666;
+    }
+
+    /* skills */
+    .skill-row { margin-bottom: 10px; }
+    .skill-name { font-size: 7px; color: var(--gold); margin-bottom: 3px; }
+    .skill-bar-wrap {
+      width: 100%; height: 12px;
+      background: #111; border: 2px solid var(--ui-border);
+      position: relative;
+    }
+    .skill-bar {
+      height: 100%;
+      background: linear-gradient(90deg, var(--green-dark), var(--green-light));
+      transition: width .8s ease;
+    }
+    .skill-level {
+      position: absolute; right: 4px; top: 50%;
+      transform: translateY(-50%);
+      font-size: 6px; color: #fff;
+    }
+
+    /* shop window */
+    .shop-item {
+      display: flex; align-items: center; gap: 8px;
+      padding: 6px; margin-bottom: 4px;
+      background: #1a0d00; border: 2px solid var(--brown-dark);
+      cursor: pointer; transition: background .15s;
+    }
+    .shop-item:hover { background: var(--brown-dark); }
+    .shop-icon { font-size: 16px; }
+    .shop-info { flex: 1; }
+    .shop-name { font-size: 7px; color: var(--ui-light); }
+    .shop-price { font-size: 6px; color: var(--gold); margin-top: 2px; }
+    .shop-buy-btn {
+      background: var(--green-dark); border: 2px solid var(--green-light);
+      color: var(--ui-light); font-family: var(--pixel-font);
+      font-size: 6px; padding: 3px 6px; cursor: pointer;
+    }
+    .shop-buy-btn:hover { background: var(--green-mid); }
+
+    /* ─── NOTIFICATION ──────────────────────────────────────────────── */
+    #notif-area { position: fixed; top: 10px; left: 50%; transform: translateX(-50%);
+      z-index: 9000; display: flex; flex-direction: column; gap: 6px; align-items: center; }
+    .notif {
+      background: var(--ui-bg); border: 3px solid var(--gold);
+      color: var(--ui-light); font-size: 8px; padding: 8px 14px;
+      box-shadow: 3px 3px 0 #000;
+      animation: notif-in .3s ease-out;
+      white-space: nowrap;
+    }
+    @keyframes notif-in { from{transform:translateY(-20px);opacity:0} to{transform:translateY(0);opacity:1} }
+
+    /* ─── CURSOR OVERRIDES ──────────────────────────────────────────── */
+    body.tool-hoe      .farm-cell:not(.water-tile):not(.path-tile) { cursor: url("data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' width='20' height='20'><text y='16' font-size='16'>⛏</text></svg>") 0 16, crosshair; }
+    body.tool-water    .farm-cell.tilled,
+    body.tool-water    .farm-cell.planted { cursor: url("data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' width='20' height='20'><text y='16' font-size='16'>💧</text></svg>") 0 16, crosshair; }
+    body.tool-seeds    .farm-cell.tilled  { cursor: url("data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' width='20' height='20'><text y='16' font-size='16'>🌱</text></svg>") 0 16, crosshair; }
+    body.tool-scythe   .farm-cell.ready   { cursor: url("data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' width='20' height='20'><text y='16' font-size='16'>🌾</text></svg>") 0 16, crosshair; }
+
+    /* ─── PARTICLES ─────────────────────────────────────────────────── */
+    .particle {
+      position: fixed; pointer-events: none; z-index: 9998;
+      font-size: 16px;
+      animation: particle-float 1.2s ease-out forwards;
+    }
+    @keyframes particle-float {
+      from { opacity: 1; transform: translateY(0) scale(1); }
+      to   { opacity: 0; transform: translateY(-60px) scale(.5); }
+    }
+
+    /* ─── HELP BAR ──────────────────────────────────────────────────── */
+    #help-bar {
+      position: absolute; bottom: 60px; left: 0; right: 0;
+      z-index: 3; pointer-events: none;
+      display: flex; justify-content: center;
+    }
+    #help-text {
+      background: rgba(0,0,0,.6); color: var(--ui-light); font-size: 7px;
+      padding: 4px 10px; border: 1px solid var(--ui-border);
+    }
+
+    /* ─── RESIZE HANDLE ─────────────────────────────────────────────── */
+    .win-resize {
+      position: absolute; bottom: 0; right: 0;
+      width: 14px; height: 14px; cursor: se-resize;
+      background: var(--ui-border);
+      clip-path: polygon(100% 0, 100% 100%, 0 100%);
+    }
+
+    /* ─── SCROLLBAR GLOBAL ──────────────────────────────────────────── */
+    ::-webkit-scrollbar { width: 6px; }
+    ::-webkit-scrollbar-track { background: #111; }
+    ::-webkit-scrollbar-thumb { background: var(--brown-light); }
+  </style>
+</head>
+<body>
+
+<!-- ══════════════════════════════════════════════════════════════════
+     BOOT SCREEN
+══════════════════════════════════════════════════════════════════ -->
+<div id="boot-screen">
+  <div id="boot-logo">⭐ STARDEW<br>OS v1.0</div>
+  <div id="boot-sub">PELICAN TOWN COMPUTER SYSTEMS</div>
+  <div id="boot-press">— PRESS ANY KEY TO START —</div>
+  <div id="boot-bar-wrap"><div id="boot-bar"></div></div>
+  <div id="boot-status">Loading farm data...</div>
+</div>
+
+<!-- ══════════════════════════════════════════════════════════════════
+     DESKTOP
+══════════════════════════════════════════════════════════════════ -->
+<div id="desktop">
+  <div id="sky-overlay"></div>
+  <div id="night-overlay"></div>
+
+  <!-- Weather top bar -->
+  <div id="weather-bar">
+    <span id="weather-icon">☀️</span>
+    <span id="weather-text">Sunny</span>
+    <span style="margin-left:auto">🌡️ <span id="temp-val">72°F</span></span>
+    <span>🌬️ <span id="wind-val">Light Breeze</span></span>
+  </div>
+
+  <!-- Main area: farm + sidebar -->
+  <div id="main-area">
+    <div id="farm-wrap">
+      <div id="farm-label">🌾 YOUR FARM — STARDEW VALLEY</div>
+      <div id="farm-grid"></div>
+    </div>
+    <div id="sidebar">
+      <div class="desk-icon" onclick="toggleWindow('inventory-window')">
+        🎒<span class="icon-label">INVENTORY</span>
+      </div>
+      <div class="desk-icon" onclick="toggleWindow('calendar-window')">
+        📅<span class="icon-label">CALENDAR</span>
+      </div>
+      <div class="desk-icon" onclick="toggleWindow('mail-window')">
+        📬<span class="icon-label">MAIL</span>
+      </div>
+      <div class="desk-icon" onclick="toggleWindow('skills-window')">
+        ⭐<span class="icon-label">SKILLS</span>
+      </div>
+      <div class="desk-icon" onclick="toggleWindow('shop-window')">
+        🛒<span class="icon-label">SHOP</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- Help bar -->
+  <div id="help-bar"><div id="help-text">Select a tool below, then click the farm!</div></div>
+
+  <!-- Taskbar -->
+  <div id="taskbar">
+    <!-- Energy -->
+    <div id="energy-wrap">
+      <span id="energy-label">⚡ ENERGY</span>
+      <div id="energy-bar-outer"><div id="energy-bar"></div></div>
+      <span id="energy-val">270 / 270</span>
+    </div>
+
+    <!-- Clock -->
+    <div id="clock-wrap">
+      <div id="time-display">6:00 AM</div>
+      <div id="date-display">Day 1 — Spring</div>
+    </div>
+
+    <!-- Tools -->
+    <span id="tools-label">TOOLS</span>
+    <div id="tools-wrap">
+      <div class="tool-btn active" id="tool-hoe" onclick="selectTool('hoe')">
+        ⛏️<div class="tool-tooltip">Hoe — Till soil</div>
+      </div>
+      <div class="tool-btn" id="tool-water" onclick="selectTool('water')">
+        🪣<div class="tool-tooltip">Watering Can — Water crops</div>
+      </div>
+      <div class="tool-btn" id="tool-seeds" onclick="selectTool('seeds')">
+        🌱<div class="tool-tooltip">Seeds — Plant crops</div>
+      </div>
+      <div class="tool-btn" id="tool-scythe" onclick="selectTool('scythe')">
+        🪚<div class="tool-tooltip">Scythe — Harvest crops</div>
+      </div>
+      <div class="tool-btn" id="tool-pickaxe" onclick="selectTool('pickaxe')">
+        ⚒️<div class="tool-tooltip">Pickaxe — Clear rocks</div>
+      </div>
+    </div>
+
+    <!-- Gold -->
+    <div id="gold-display">
+      <span>💰</span>
+      <span id="gold-val">500g</span>
+    </div>
+
+    <!-- Season -->
+    <div id="season-display">
+      <div id="season-icon">🌸</div>
+      <div style="font-size:6px;color:var(--ui-light)" id="season-label">SPRING</div>
+    </div>
+  </div>
+
+  <!-- ── NOTIFICATION AREA ──────────────────────────────────────── -->
+  <div id="notif-area"></div>
+
+  <!-- ╔══════════════════════════════════════════════════════╗
+       ║  WINDOWS                                            ║
+       ╚══════════════════════════════════════════════════════╝ -->
+
+  <!-- Inventory -->
+  <div class="os-window" id="inventory-window" style="left:80px;top:60px;width:320px">
+    <div class="win-titlebar" onmousedown="startDrag(event,'inventory-window')">
+      <span>🎒</span><span class="win-title">INVENTORY</span>
+      <div class="win-close" onclick="closeWindow('inventory-window')">✕</div>
+    </div>
+    <div class="win-body">
+      <div style="font-size:7px;color:var(--gold);margin-bottom:8px">BACKPACK — 24 SLOTS</div>
+      <div class="inv-grid" id="inv-grid"></div>
+      <div style="border-top:2px solid var(--ui-border);padding-top:6px;font-size:7px;color:var(--ui-light)">
+        Seeds: <span id="seeds-count" style="color:var(--gold)">5</span> &nbsp;|&nbsp;
+        Crops: <span id="crop-count" style="color:var(--gold)">0</span> &nbsp;|&nbsp;
+        Gold: <span id="inv-gold" style="color:var(--gold)">500g</span>
+      </div>
+    </div>
+    <div class="win-resize" onmousedown="startResize(event,'inventory-window')"></div>
+  </div>
+
+  <!-- Calendar -->
+  <div class="os-window" id="calendar-window" style="left:250px;top:80px;width:280px">
+    <div class="win-titlebar" onmousedown="startDrag(event,'calendar-window')">
+      <span>📅</span><span class="win-title">CALENDAR</span>
+      <div class="win-close" onclick="closeWindow('calendar-window')">✕</div>
+    </div>
+    <div class="win-body">
+      <div style="font-size:7px;color:var(--gold);margin-bottom:4px">
+        <span id="cal-season-title">🌸 SPRING — YEAR 1</span>
+      </div>
+      <div style="font-size:6px;color:var(--ui-light);margin-bottom:4px">
+        Current Day: <span id="cal-today" style="color:var(--gold)">Day 1</span>
+      </div>
+      <div style="display:grid;grid-template-columns:repeat(7,1fr);gap:2px;margin-bottom:4px">
+        <div style="font-size:5px;color:#888;text-align:center">M</div>
+        <div style="font-size:5px;color:#888;text-align:center">T</div>
+        <div style="font-size:5px;color:#888;text-align:center">W</div>
+        <div style="font-size:5px;color:#888;text-align:center">T</div>
+        <div style="font-size:5px;color:#888;text-align:center">F</div>
+        <div style="font-size:5px;color:#888;text-align:center">S</div>
+        <div style="font-size:5px;color:#888;text-align:center">S</div>
+      </div>
+      <div class="cal-grid" id="cal-grid"></div>
+      <div style="margin-top:8px;font-size:6px;color:var(--ui-light);line-height:1.8">
+        📌 Today's Events:<br>
+        <span id="today-events" style="color:var(--gold)">Nothing special today.</span>
+      </div>
+    </div>
+    <div class="win-resize" onmousedown="startResize(event,'calendar-window')"></div>
+  </div>
+
+  <!-- Mail -->
+  <div class="os-window" id="mail-window" style="left:420px;top:70px;width:300px">
+    <div class="win-titlebar" onmousedown="startDrag(event,'mail-window')">
+      <span>📬</span><span class="win-title">MAIL</span>
+      <div class="win-close" onclick="closeWindow('mail-window')">✕</div>
+    </div>
+    <div class="win-body" id="mail-body">
+      <!-- dynamically populated -->
+    </div>
+    <div class="win-resize" onmousedown="startResize(event,'mail-window')"></div>
+  </div>
+
+  <!-- Skills -->
+  <div class="os-window" id="skills-window" style="left:120px;top:100px;width:260px">
+    <div class="win-titlebar" onmousedown="startDrag(event,'skills-window')">
+      <span>⭐</span><span class="win-title">SKILLS</span>
+      <div class="win-close" onclick="closeWindow('skills-window')">✕</div>
+    </div>
+    <div class="win-body" id="skills-body">
+      <!-- dynamically populated -->
+    </div>
+    <div class="win-resize" onmousedown="startResize(event,'skills-window')"></div>
+  </div>
+
+  <!-- Shop -->
+  <div class="os-window" id="shop-window" style="left:300px;top:50px;width:280px">
+    <div class="win-titlebar" onmousedown="startDrag(event,'shop-window')">
+      <span>🛒</span><span class="win-title">PIERRE'S SHOP</span>
+      <div class="win-close" onclick="closeWindow('shop-window')">✕</div>
+    </div>
+    <div class="win-body" id="shop-body">
+      <!-- dynamically populated -->
+    </div>
+    <div class="win-resize" onmousedown="startResize(event,'shop-window')"></div>
+  </div>
+
+</div><!-- end #desktop -->
+
+<!-- ══════════════════════════════════════════════════════════════════
+     JAVASCRIPT
+══════════════════════════════════════════════════════════════════ -->
+<script>
+// ── GAME STATE ──────────────────────────────────────────────────────────
+const STATE = {
+  // time
+  gameHour:   6,
+  gameMinute: 0,
+  day:        1,
+  year:       1,
+  seasonIdx:  0,          // 0=Spring 1=Summer 2=Fall 3=Winter
+  // economy
+  gold:       500,
+  seeds:      5,
+  // energy
+  energy:     270,
+  maxEnergy:  270,
+  // skills (0–100 xp, levels 0–10)
+  skills: {
+    farming:  { xp: 0, level: 0 },
+    mining:   { xp: 0, level: 0 },
+    foraging: { xp: 0, level: 0 },
+    fishing:  { xp: 0, level: 0 },
+  },
+  // farming
+  farmCells:  [],   // array of cell objects
+  // inventory  { icon, name, count }
+  inventory:  [],
+  // selected tool
+  tool:       'hoe',
+  // weather
+  weather:    'Sunny',
+  // flags
+  sleeping:   false,
+};
+
+const SEASONS = ['Spring','Summer','Fall','Winter'];
+const SEASON_ICONS = ['🌸','☀️','🍂','❄️'];
+const SEASON_COLORS = {
+  Spring: { sky:'#87ceeb', tree:'#5a8a2c' },
+  Summer: { sky:'#a0d0f0', tree:'#3a7a1c' },
+  Fall:   { sky:'#d4a06a', tree:'#b85c1a' },
+  Winter: { sky:'#c0d8f0', tree:'#7090b0' },
+};
+const WEATHERS = ['Sunny','Partly Cloudy','Rainy','Windy','Thunderstorm'];
+const WEATHER_ICONS = { 'Sunny':'☀️','Partly Cloudy':'⛅','Rainy':'🌧️','Windy':'💨','Thunderstorm':'⛈️' };
+const CROP_TYPES = [
+  { icon:'🥕', name:'Carrot',     growTime: 4  * 6, sellPrice: 35,  seedCost: 20  },
+  { icon:'🌻', name:'Sunflower',  growTime: 6  * 6, sellPrice: 80,  seedCost: 50  },
+  { icon:'🍓', name:'Strawberry', growTime: 3  * 6, sellPrice: 60,  seedCost: 30  },
+  { icon:'🥦', name:'Broccoli',   growTime: 5  * 6, sellPrice: 45,  seedCost: 25  },
+  { icon:'🌽', name:'Corn',       growTime: 8  * 6, sellPrice: 100, seedCost: 75  },
+  { icon:'🍅', name:'Tomato',     growTime: 5  * 6, sellPrice: 55,  seedCost: 35  },
+];
+const ROCKS  = ['🪨','🪨','🪨'];
+const TREES  = ['🌲','🌳','🌴'];
+
+// Farm grid dimensions
+const COLS = 9, ROWS = 6;
+const WATER_CELLS  = new Set([3,12,21,30,39,48]); // left column strip
+const PATH_CELLS   = new Set([8,17,26,35,44,53]);  // right column strip
+
+const MAIL_DATA = [
+  { from:'Robin', icon:'🪵', text:'Good morning! I can upgrade your farm tools at any time. Just stop by!', unread:true },
+  { from:'Willy',  icon:'🎣', text:'The fish are biting today. Come down to the pier sometime!', unread:true },
+  { from:'Mayor Lewis', icon:'🏛️', text:'Welcome to Pelican Town! Make yourself at home on the farm.', unread:false },
+  { from:'Abigail', icon:'🗡️', text:'Heard you moved in. The mines are dangerous but rewarding. Be careful!', unread:false },
+  { from:'Pierre', icon:'🛒', text:'My shop is open Monday–Saturday. Fresh seeds are in stock!', unread:false },
+];
+
+const SHOP_ITEMS = [
+  { icon:'🥕', name:'Carrot Seeds (5)',    price: 80,  action: ()=>{ buySeedPack(CROP_TYPES[0], 5); } },
+  { icon:'🌻', name:'Sunflower Seeds (3)', price: 120, action: ()=>{ buySeedPack(CROP_TYPES[1], 3); } },
+  { icon:'🍓', name:'Strawberry Seeds (4)',price: 100, action: ()=>{ buySeedPack(CROP_TYPES[2], 4); } },
+  { icon:'🥦', name:'Broccoli Seeds (5)',  price: 90,  action: ()=>{ buySeedPack(CROP_TYPES[3], 5); } },
+  { icon:'🌽', name:'Corn Seeds (2)',       price: 140, action: ()=>{ buySeedPack(CROP_TYPES[4], 2); } },
+  { icon:'⚡', name:'Energy Drink',         price: 50,  action: ()=>{ STATE.energy=Math.min(STATE.maxEnergy,STATE.energy+80); updateEnergy(); notify('⚡ Energy restored +80'); } },
+];
+
+// ── BOOT SEQUENCE ────────────────────────────────────────────────────────
+function bootStart() {
+  const bootScreen = document.getElementById('boot-screen');
+  const bootPress  = document.getElementById('boot-press');
+  const bootBarWrap= document.getElementById('boot-bar-wrap');
+  const bootBar    = document.getElementById('boot-bar');
+  const bootStatus = document.getElementById('boot-status');
+  const statuses   = ['Tending crops…','Loading inventory…','Checking mail…','Syncing calendar…','Warming up tools…','Ready!'];
+
+  // create starfield
+  for (let i = 0; i < 60; i++) {
+    const s = document.createElement('div');
+    s.className = 'boot-star';
+    s.style.left = Math.random()*100 + '%';
+    s.style.top  = Math.random()*100 + '%';
+    s.style.animationDelay = Math.random()*3 + 's';
+    bootScreen.appendChild(s);
+  }
+
+  document.addEventListener('keydown', onAnyKey, {once:true});
+  document.addEventListener('click',   onAnyKey, {once:true});
+
+  function onAnyKey() {
+    bootPress.style.display  = 'none';
+    bootBarWrap.style.display= 'block';
+    bootStatus.style.display = 'block';
+    let pct = 0, si = 0;
+    const iv = setInterval(()=>{
+      pct += Math.random()*12 + 4;
+      if (pct >= 100) pct = 100;
+      bootBar.style.width = pct + '%';
+      bootStatus.textContent = statuses[si++ % statuses.length];
+      if (pct >= 100) {
+        clearInterval(iv);
+        setTimeout(launchDesktop, 400);
+      }
+    }, 200);
+  }
+}
+
+function launchDesktop() {
+  document.getElementById('boot-screen').style.display = 'none';
+  const desk = document.getElementById('desktop');
+  desk.style.display = 'flex';
+  initFarm();
+  initInventory();
+  initCalendar();
+  initMail();
+  initSkills();
+  initShop();
+  startGameLoop();
+  applySeasonTheme();
+  notify('🌅 Day ' + STATE.day + ' — Welcome to your farm!');
+}
+
+// ── FARM GRID INIT ───────────────────────────────────────────────────────
+function initFarm() {
+  const grid = document.getElementById('farm-grid');
+  grid.innerHTML = '';
+  STATE.farmCells = [];
+  const total = COLS * ROWS;
+  for (let i = 0; i < total; i++) {
+    const cell = {
+      idx:       i,
+      state:     WATER_CELLS.has(i) ? 'water' : PATH_CELLS.has(i) ? 'path' : 'grass',
+      cropType:  null,
+      growTick:  0,
+      growMax:   0,
+      el:        null,
+    };
+    const el = document.createElement('div');
+    el.className = 'farm-cell';
+    if (cell.state === 'water') el.classList.add('water-tile');
+    if (cell.state === 'path')  el.classList.add('path-tile');
+    el.dataset.idx = i;
+    el.addEventListener('click', () => onCellClick(i));
+    el.innerHTML = cell.state === 'water' ? '🌊' : cell.state === 'path' ? '🪵' : '';
+    cell.el = el;
+    STATE.farmCells.push(cell);
+    grid.appendChild(el);
+  }
+  // scatter some rocks/trees for decoration
+  const decoratable = STATE.farmCells.filter(c => c.state === 'grass');
+  [2,7,15,20,38,42].forEach((ri, di) => {
+    if (decoratable[ri]) {
+      decoratable[ri].state = 'rock';
+      decoratable[ri].el.innerHTML = '🪨';
+    }
+  });
+  [5,11,28,33].forEach((ti) => {
+    if (decoratable[ti]) {
+      decoratable[ti].state = 'tree';
+      decoratable[ti].el.innerHTML = '🌲';
+    }
+  });
+}
+
+function renderCell(cell) {
+  const el = cell.el;
+  el.className = 'farm-cell';
+  el.innerHTML = '';
+  switch(cell.state) {
+    case 'water': el.classList.add('water-tile'); el.innerHTML='🌊'; break;
+    case 'path':  el.classList.add('path-tile');  el.innerHTML='🪵'; break;
+    case 'rock':  el.innerHTML='🪨'; break;
+    case 'tree':  el.innerHTML='🌲'; break;
+    case 'grass': break;
+    case 'tilled':
+      el.classList.add('tilled'); break;
+    case 'planted':
+      el.classList.add('planted');
+      el.innerHTML = cell.cropType.icon + '<span class="grow-indicator">🌱</span>';
+      break;
+    case 'watered':
+      el.classList.add('watered');
+      const pct = Math.floor((cell.growTick/cell.growMax)*100);
+      el.innerHTML = cell.cropType.icon + '<span class="grow-indicator">'+(pct<50?'🌱':'🌿')+'</span>';
+      break;
+    case 'ready':
+      el.classList.add('ready');
+      el.innerHTML = cell.cropType.icon;
+      el.title = 'Ready to harvest! Use Scythe.';
+      break;
+  }
+}
+
+// ── CELL CLICK ───────────────────────────────────────────────────────────
+function onCellClick(idx) {
+  const cell = STATE.farmCells[idx];
+  if (['water','path','rock','tree'].includes(cell.state)) {
+    if (cell.state === 'rock' && STATE.tool === 'pickaxe') {
+      useEnergy(10);
+      cell.state = 'grass';
+      cell.el.innerHTML = '';
+      cell.el.className = 'farm-cell';
+      spawnParticle(cell.el, '💨');
+      addXP('mining', 5);
+      notify('⚒️ Rock cleared!');
+    } else if (cell.state === 'tree' && STATE.tool === 'pickaxe') {
+      useEnergy(15);
+      cell.state = 'grass';
+      cell.el.innerHTML = '';
+      cell.el.className = 'farm-cell';
+      addToInventory({ icon:'🪵', name:'Wood', count:1 });
+      spawnParticle(cell.el, '🪵');
+      addXP('foraging', 8);
+      notify('🌲 Wood obtained!');
+    }
+    return;
+  }
+  if (STATE.energy <= 0) { notify('😴 You are too tired! Sleep to restore energy.'); return; }
+
+  switch(STATE.tool) {
+    case 'hoe':
+      if (cell.state === 'grass') {
+        useEnergy(3);
+        cell.state = 'tilled';
+        renderCell(cell);
+        spawnParticle(cell.el, '💨');
+        addXP('farming', 2);
+      } else { notify('⛏️ Already tilled!'); }
+      break;
+    case 'water':
+      if (cell.state === 'planted') {
+        useEnergy(2);
+        cell.state = 'watered';
+        renderCell(cell);
+        spawnParticle(cell.el, '💧');
+        addXP('farming', 1);
+      } else if (cell.state === 'tilled') {
+        notify('🌱 Plant something first!');
+      } else { notify('🪣 Nothing to water here.'); }
+      break;
+    case 'seeds':
+      if (cell.state === 'tilled') {
+        if (STATE.seeds <= 0) { notify('🌱 No seeds! Buy more from Pierre.'); return; }
+        useEnergy(2);
+        STATE.seeds--;
+        const crop = CROP_TYPES[Math.floor(Math.random()*CROP_TYPES.length)];
+        cell.state    = 'planted';
+        cell.cropType = crop;
+        cell.growTick = 0;
+        cell.growMax  = crop.growTime;
+        renderCell(cell);
+        spawnParticle(cell.el, '🌱');
+        updateInventoryUI();
+        addXP('farming', 3);
+        notify('🌱 Planted ' + crop.name + '!');
+      } else { notify('⛏️ Till the soil first!'); }
+      break;
+    case 'scythe':
+      if (cell.state === 'ready') {
+        useEnergy(4);
+        const c = cell.cropType;
+        addToInventory({ icon: c.icon, name: c.name, count: 1 });
+        cell.state    = 'tilled';
+        cell.cropType = null;
+        renderCell(cell);
+        spawnParticle(cell.el, '✨');
+        addXP('farming', 10);
+        notify(c.icon + ' Harvested ' + c.name + '! (+' + c.sellPrice + 'g when sold)');
+      } else { notify('🌾 Nothing ready to harvest here.'); }
+      break;
+    case 'pickaxe':
+      notify('⚒️ Nothing to clear here.');
+      break;
+  }
+  updateInventoryUI();
+  updateGoldDisplay();
+}
+
+// ── TOOL SELECTION ───────────────────────────────────────────────────────
+function selectTool(tool) {
+  STATE.tool = tool;
+  document.querySelectorAll('.tool-btn').forEach(b => b.classList.remove('active'));
+  document.getElementById('tool-'+tool)?.classList.add('active');
+  // body class for cursor
+  document.body.className = 'tool-'+tool;
+  const tips = {
+    hoe:'⛏️ Hoe selected — Click grass to till soil',
+    water:'🪣 Watering Can — Click planted crops to water',
+    seeds:'🌱 Seeds — Click tilled soil to plant',
+    scythe:'🌾 Scythe — Click ready crops to harvest',
+    pickaxe:'⚒️ Pickaxe — Click rocks/trees to clear',
+  };
+  document.getElementById('help-text').textContent = tips[tool] || '';
+}
+
+// ── GAME LOOP ────────────────────────────────────────────────────────────
+function startGameLoop() {
+  // Game time: 1 real second = 10 game minutes
+  setInterval(tickTime, 1000);
+  // Crop growth every 3 real seconds
+  setInterval(tickCrops, 3000);
+}
+
+function tickTime() {
+  if (STATE.sleeping) return;
+  STATE.gameMinute += 10;
+  if (STATE.gameMinute >= 60) {
+    STATE.gameMinute = 0;
+    STATE.gameHour++;
+    // hourly events
+    onHourChange(STATE.gameHour);
+  }
+  if (STATE.gameHour >= 26) {
+    // force sleep at 2AM
+    goToSleep();
+    return;
+  }
+  updateTimeDisplay();
+  updateDayNight();
+}
+
+function onHourChange(hour) {
+  if (hour === 12) notify('🌞 Noon — Keep up the good work!');
+  if (hour === 18) notify('🌇 Evening — Time to head home soon!');
+  if (hour === 21) notify('⚠️ It\'s getting late! Sleep by 2 AM.');
+  if (hour === 20) changeWeather();
+}
+
+function goToSleep() {
+  STATE.sleeping = true;
+  STATE.gameHour  = 6;
+  STATE.gameMinute= 0;
+  STATE.day++;
+  if (STATE.day > 28) {
+    STATE.day = 1;
+    STATE.seasonIdx = (STATE.seasonIdx + 1) % 4;
+    applySeasonTheme();
+    notify('🌸 A new season begins: ' + SEASONS[STATE.seasonIdx] + '!');
+  }
+  STATE.energy = STATE.maxEnergy;
+  updateEnergy();
+  updateTimeDisplay();
+  updateCalendar();
+  applySeasonTheme();
+  setTimeout(()=>{ STATE.sleeping = false; notify('🌅 Good morning! Day ' + STATE.day + ' — ' + SEASONS[STATE.seasonIdx]); }, 1200);
+}
+
+function tickCrops() {
+  STATE.farmCells.forEach(cell => {
+    if (cell.state === 'watered') {
+      cell.growTick++;
+      if (cell.growTick >= cell.growMax) {
+        cell.state = 'ready';
+      }
+      renderCell(cell);
+    }
+  });
+}
+
+// ── TIME DISPLAY ─────────────────────────────────────────────────────────
+function updateTimeDisplay() {
+  const h = STATE.gameHour > 12 ? STATE.gameHour - 12 : STATE.gameHour === 0 ? 12 : STATE.gameHour;
+  const ampm = STATE.gameHour >= 12 ? 'PM' : 'AM';
+  const mm = String(STATE.gameMinute).padStart(2,'0');
+  document.getElementById('time-display').textContent = h + ':' + mm + ' ' + ampm;
+  const season = SEASONS[STATE.seasonIdx];
+  document.getElementById('date-display').textContent = 'Day ' + STATE.day + ' — ' + season;
+}
+
+function updateDayNight() {
+  const h = STATE.gameHour + STATE.gameMinute/60;
+  const night = document.getElementById('night-overlay');
+  if      (h >= 6  && h < 18)  night.style.background = 'transparent';
+  else if (h >= 18 && h < 20)  { const t=(h-18)/2; night.style.background=`rgba(0,0,60,${t*0.4})`; }
+  else if (h >= 20 && h < 22)  { const t=(h-20)/2; night.style.background=`rgba(0,0,60,${0.4+t*0.3})`; }
+  else                          night.style.background = 'rgba(0,0,60,0.7)';
+}
+
+// ── ENERGY ───────────────────────────────────────────────────────────────
+function useEnergy(amt) {
+  STATE.energy = Math.max(0, STATE.energy - amt);
+  updateEnergy();
+  if (STATE.energy === 0) notify('😴 No energy left! Buy an energy drink or sleep.');
+}
+
+function updateEnergy() {
+  const pct = (STATE.energy / STATE.maxEnergy) * 100;
+  document.getElementById('energy-bar').style.width = pct + '%';
+  document.getElementById('energy-bar').style.background =
+    pct > 50 ? 'linear-gradient(90deg, #f5c842, #ff9900)' :
+    pct > 25 ? 'linear-gradient(90deg, #ff9900, #ff6600)' :
+               'linear-gradient(90deg, #ff4400, #ff0000)';
+  document.getElementById('energy-val').textContent = STATE.energy + ' / ' + STATE.maxEnergy;
+}
+
+// ── GOLD ─────────────────────────────────────────────────────────────────
+function updateGoldDisplay() {
+  document.getElementById('gold-val').textContent = STATE.gold + 'g';
+  document.getElementById('inv-gold').textContent = STATE.gold + 'g';
+}
+
+// ── INVENTORY ────────────────────────────────────────────────────────────
+function initInventory() {
+  const grid = document.getElementById('inv-grid');
+  grid.innerHTML = '';
+  for (let i = 0; i < 24; i++) {
+    const slot = document.createElement('div');
+    slot.className = 'inv-slot empty';
+    slot.dataset.slotIdx = i;
+    slot.addEventListener('click', () => onInventorySlotClick(i));
+    grid.appendChild(slot);
+  }
+  updateInventoryUI();
+}
+
+function addToInventory(item) {
+  const existing = STATE.inventory.find(i => i.name === item.name);
+  if (existing) { existing.count += item.count; }
+  else { STATE.inventory.push({...item}); }
+  updateInventoryUI();
+}
+
+function onInventorySlotClick(idx) {
+  const item = STATE.inventory[idx];
+  if (!item) return;
+  // sell the item
+  const cropInfo = CROP_TYPES.find(c => c.name === item.name);
+  if (cropInfo) {
+    const gain = cropInfo.sellPrice * item.count;
+    STATE.gold += gain;
+    notify(item.icon + ' Sold ' + item.count + 'x ' + item.name + ' for ' + gain + 'g!');
+    spawnParticleAt(document.querySelector('[data-slot-idx="'+idx+'"]'), '💰');
+    STATE.inventory.splice(idx, 1);
+    updateInventoryUI();
+    updateGoldDisplay();
+    addXP('farming', 5);
+  } else if (item.name === 'Wood') {
+    notify('🪵 Wood — used for construction.');
+  }
+}
+
+function updateInventoryUI() {
+  const grid   = document.getElementById('inv-grid');
+  const slots  = grid.querySelectorAll('.inv-slot');
+  slots.forEach((slot, i) => {
+    slot.innerHTML = '';
+    slot.className = 'inv-slot';
+    const item = STATE.inventory[i];
+    if (item) {
+      slot.innerHTML = item.icon + '<span class="inv-count">'+item.count+'</span>';
+      slot.title = item.name + ' (click to sell)';
+    } else {
+      slot.classList.add('empty');
+    }
+  });
+  document.getElementById('seeds-count').textContent = STATE.seeds;
+  document.getElementById('crop-count').textContent  = STATE.inventory.reduce((s,i)=>{
+    return CROP_TYPES.find(c=>c.name===i.name) ? s+i.count : s;
+  }, 0);
+  document.getElementById('inv-gold').textContent = STATE.gold + 'g';
+}
+
+// ── CALENDAR ─────────────────────────────────────────────────────────────
+function initCalendar() { updateCalendar(); }
+function updateCalendar() {
+  const season = SEASONS[STATE.seasonIdx];
+  document.getElementById('cal-season-title').textContent = SEASON_ICONS[STATE.seasonIdx] + ' ' + season.toUpperCase() + ' — YEAR ' + STATE.year;
+  document.getElementById('cal-today').textContent = 'Day ' + STATE.day;
+  const grid = document.getElementById('cal-grid');
+  grid.innerHTML = '';
+  for (let d = 1; d <= 28; d++) {
+    const el = document.createElement('div');
+    el.className = 'cal-day' + (d === STATE.day ? ' today' : '') + (d < STATE.day ? ' past' : '');
+    el.textContent = d;
+    el.title = season + ' ' + d;
+    grid.appendChild(el);
+  }
+  const events = { 13:'🎉 Egg Festival', 24:'💫 Flower Dance', 28:'🌺 Season End' };
+  document.getElementById('today-events').textContent = events[STATE.day] || 'Nothing special today.';
+}
+
+// ── MAIL ─────────────────────────────────────────────────────────────────
+function initMail() {
+  const body = document.getElementById('mail-body');
+  body.innerHTML = '';
+  MAIL_DATA.forEach(m => {
+    const div = document.createElement('div');
+    div.className = 'mail-item' + (m.unread ? ' unread' : '');
+    div.innerHTML = `
+      <div class="mail-icon">${m.icon}</div>
+      <div class="mail-content">
+        <div class="mail-from">${m.from}</div>
+        <div class="mail-text">${m.text}</div>
+      </div>`;
+    div.addEventListener('click', () => { m.unread = false; div.classList.remove('unread'); });
+    body.appendChild(div);
+  });
+}
+
+// ── SKILLS ───────────────────────────────────────────────────────────────
+function initSkills() { renderSkills(); }
+function renderSkills() {
+  const body = document.getElementById('skills-body');
+  const entries = [
+    { key:'farming',  icon:'🌾', name:'Farming'  },
+    { key:'mining',   icon:'⛏️', name:'Mining'   },
+    { key:'foraging', icon:'🌿', name:'Foraging' },
+    { key:'fishing',  icon:'🎣', name:'Fishing'  },
+  ];
+  body.innerHTML = '';
+  entries.forEach(e => {
+    const skill = STATE.skills[e.key];
+    const xpForLevel = (skill.level + 1) * 100;
+    const pct = Math.min(100, (skill.xp % 100));
+    const div = document.createElement('div');
+    div.className = 'skill-row';
+    div.innerHTML = `
+      <div class="skill-name">${e.icon} ${e.name} — Lv.${skill.level}</div>
+      <div class="skill-bar-wrap">
+        <div class="skill-bar" style="width:${pct}%"></div>
+        <div class="skill-level">${skill.xp % 100}/100</div>
+      </div>`;
+    body.appendChild(div);
+  });
+}
+
+function addXP(skillKey, amount) {
+  const skill = STATE.skills[skillKey];
+  skill.xp += amount;
+  const newLevel = Math.floor(skill.xp / 100);
+  if (newLevel > skill.level) {
+    skill.level = newLevel;
+    notify('⭐ ' + skillKey.charAt(0).toUpperCase()+skillKey.slice(1) + ' Level Up! → Lv.' + newLevel);
+    STATE.maxEnergy += 10;
+    STATE.energy = Math.min(STATE.maxEnergy, STATE.energy + 10);
+    updateEnergy();
+  }
+  renderSkills();
+}
+
+// ── SHOP ─────────────────────────────────────────────────────────────────
+function initShop() {
+  const body = document.getElementById('shop-body');
+  body.innerHTML = '<div style="font-size:7px;color:var(--gold);margin-bottom:8px">PIERRE\'S GENERAL STORE</div>';
+  SHOP_ITEMS.forEach(item => {
+    const div = document.createElement('div');
+    div.className = 'shop-item';
+    div.innerHTML = `
+      <div class="shop-icon">${item.icon}</div>
+      <div class="shop-info">
+        <div class="shop-name">${item.name}</div>
+        <div class="shop-price">💰 ${item.price}g</div>
+      </div>
+      <button class="shop-buy-btn">BUY</button>`;
+    div.querySelector('.shop-buy-btn').addEventListener('click', () => {
+      if (STATE.gold < item.price) { notify('❌ Not enough gold!'); return; }
+      STATE.gold -= item.price;
+      item.action();
+      updateGoldDisplay();
+      updateInventoryUI();
+    });
+    body.appendChild(div);
+  });
+}
+
+function buySeedPack(cropType, qty) {
+  STATE.seeds += qty;
+  notify(cropType.icon + ' Bought ' + qty + 'x seeds!');
+  updateInventoryUI();
+}
+
+// ── SEASON THEME ─────────────────────────────────────────────────────────
+function applySeasonTheme() {
+  const season = SEASONS[STATE.seasonIdx];
+  const c = SEASON_COLORS[season];
+  document.getElementById('desktop').style.background = c.sky;
+  document.getElementById('season-icon').textContent  = SEASON_ICONS[STATE.seasonIdx];
+  document.getElementById('season-label').textContent = season.toUpperCase();
+  updateTimeDisplay();
+  updateCalendar();
+}
+
+// ── WEATHER ──────────────────────────────────────────────────────────────
+function changeWeather() {
+  STATE.weather = WEATHERS[Math.floor(Math.random()*WEATHERS.length)];
+  document.getElementById('weather-icon').textContent = WEATHER_ICONS[STATE.weather] || '☀️';
+  document.getElementById('weather-text').textContent = STATE.weather;
+  if (STATE.weather === 'Rainy') {
+    notify('🌧️ Rain tonight — watered crops may grow faster!');
+    // auto-water planted crops
+    STATE.farmCells.forEach(c => { if(c.state==='planted'){c.state='watered'; renderCell(c);} });
+  }
+}
+
+// ── WINDOW MANAGEMENT ────────────────────────────────────────────────────
+function toggleWindow(id) {
+  const w = document.getElementById(id);
+  w.classList.toggle('visible');
+  if (w.classList.contains('visible')) bringToFront(w);
+  if (id === 'calendar-window') updateCalendar();
+  if (id === 'skills-window')   renderSkills();
+}
+function closeWindow(id) {
+  document.getElementById(id).classList.remove('visible');
+}
+function bringToFront(el) {
+  document.querySelectorAll('.os-window').forEach(w => w.style.zIndex = 100);
+  el.style.zIndex = 200;
+}
+
+// ── DRAGGING ─────────────────────────────────────────────────────────────
+let dragEl = null, dragOX = 0, dragOY = 0;
+function startDrag(e, id) {
+  dragEl = document.getElementById(id);
+  bringToFront(dragEl);
+  const r = dragEl.getBoundingClientRect();
+  dragOX = e.clientX - r.left;
+  dragOY = e.clientY - r.top;
+  document.addEventListener('mousemove', onDragMove);
+  document.addEventListener('mouseup',   onDragEnd, {once:true});
+}
+function onDragMove(e) {
+  if (!dragEl) return;
+  dragEl.style.left = (e.clientX - dragOX) + 'px';
+  dragEl.style.top  = (e.clientY - dragOY) + 'px';
+}
+function onDragEnd() { dragEl = null; document.removeEventListener('mousemove', onDragMove); }
+
+// ── RESIZING ─────────────────────────────────────────────────────────────
+let resizeEl = null, resizeOX = 0, resizeOY = 0, resizeW0 = 0, resizeH0 = 0;
+function startResize(e, id) {
+  e.stopPropagation();
+  resizeEl = document.getElementById(id);
+  resizeOX = e.clientX; resizeOY = e.clientY;
+  resizeW0 = resizeEl.offsetWidth; resizeH0 = resizeEl.offsetHeight;
+  document.addEventListener('mousemove', onResizeMove);
+  document.addEventListener('mouseup',   onResizeEnd, {once:true});
+}
+function onResizeMove(e) {
+  if (!resizeEl) return;
+  resizeEl.style.width  = Math.max(180, resizeW0 + (e.clientX - resizeOX)) + 'px';
+  resizeEl.style.height = Math.max(120, resizeH0 + (e.clientY - resizeOY)) + 'px';
+}
+function onResizeEnd() { resizeEl = null; document.removeEventListener('mousemove', onResizeMove); }
+
+// ── NOTIFICATIONS ────────────────────────────────────────────────────────
+function notify(msg) {
+  const area = document.getElementById('notif-area');
+  const el = document.createElement('div');
+  el.className = 'notif';
+  el.textContent = msg;
+  area.appendChild(el);
+  setTimeout(()=>{
+    el.style.transition = 'opacity .5s';
+    el.style.opacity = '0';
+    setTimeout(()=>el.remove(), 500);
+  }, 3000);
+}
+
+// ── PARTICLES ────────────────────────────────────────────────────────────
+function spawnParticle(el, icon) {
+  const r = el.getBoundingClientRect();
+  spawnParticleAt2(r.left + r.width/2, r.top + r.height/2, icon);
+}
+function spawnParticleAt(el, icon) {
+  if (!el) return;
+  const r = el.getBoundingClientRect();
+  spawnParticleAt2(r.left + r.width/2, r.top + r.height/2, icon);
+}
+function spawnParticleAt2(x, y, icon) {
+  const p = document.createElement('div');
+  p.className = 'particle';
+  p.textContent = icon;
+  p.style.left = (x - 8) + 'px';
+  p.style.top  = (y - 8) + 'px';
+  document.body.appendChild(p);
+  setTimeout(()=>p.remove(), 1200);
+}
+
+// ── INIT ─────────────────────────────────────────────────────────────────
+bootStart();
+</script>
+</body>
+</html>
