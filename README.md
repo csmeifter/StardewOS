@@ -1,1 +1,4 @@
 # StardewOS
+
+**StardewOS — Feature Overview**
+
